@@ -18,8 +18,12 @@ GitHub Pages solo sirve repositorios públicos en las cuentas gratuitas, así qu
 
 2. **Activar GitHub Pages**
    `Settings` → `Pages` → en `Source` elige `Deploy from a branch`,
-   rama `main`, carpeta `/ (root)` → `Save`.
+   rama `claude/features-app-ios-expansion-vnarv6`, carpeta `/ (root)` → `Save`.
    Tarda un par de minutos la primera vez.
+
+   > El repositorio se creó vacío, así que esa rama es también la rama por defecto:
+   > no existe ninguna `main`. Si prefieres un nombre normal, antes de este paso ve a
+   > `Settings` → `Branches` y renómbrala a `main`; luego elige `main` aquí.
 
 3. **Instalarla en el iPhone**
    Abre <https://alejandrogonzalezcarro1.github.io/gym/> **en Safari**
