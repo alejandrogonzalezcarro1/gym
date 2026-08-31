@@ -1,11 +1,26 @@
 # Rutina · entreno y nutrición
 
-App web para una rutina de 4 días (Torso / Pierna / Torso / Pierna) con registro de
-series, doble progresión automática, planificador de nutrición y seguimiento de peso.
+Este repositorio contiene **dos apps independientes**, con el mismo diseño y las mismas
+funciones pero con planes distintos:
 
-Funciona sin conexión y se instala en la pantalla de inicio del iPhone como una app
-más. No tiene servidor, ni cuentas, ni analítica: **todos tus datos viven solo en tu
-teléfono**, en el almacenamiento local del navegador.
+| | Ruta | Plan |
+|---|---|---|
+| Principal | `/` | Torso / Pierna · superávit +300 kcal · 8-12 reps |
+| Barbara | `/barbara/` | Inferior / Superior · déficit −350 kcal · 10-20 reps · versión conservadora de tobillo |
+
+**Sus datos nunca se mezclan.** Las dos se sirven desde el mismo dominio y en un
+navegador el almacenamiento va por dominio, no por carpeta, así que cada una usa su
+propia clave (`gymapp:v1` y `bbapp:v1`) y su propio prefijo de caché (`rutina-` y
+`barbara-`). Cada service worker limpia solo lo suyo.
+
+Las dos son apps web de una rutina de 4 días con registro de series, doble progresión
+automática, planificador de nutrición y seguimiento. Funcionan sin conexión y se instalan
+en la pantalla de inicio del iPhone como una app más. No tienen servidor, ni cuentas, ni
+analítica: **todos los datos viven solo en el teléfono**, en el almacenamiento local del
+navegador.
+
+Todo lo que viene a continuación describe la app principal; al final hay una sección con
+lo que cambia en la de Barbara.
 
 ---
 
@@ -25,10 +40,15 @@ GitHub Pages solo sirve repositorios públicos en las cuentas gratuitas, así qu
    > no existe ninguna `main`. Si prefieres un nombre normal, antes de este paso ve a
    > `Settings` → `Branches` y renómbrala a `main`; luego elige `main` aquí.
 
-3. **Instalarla en el iPhone**
-   Abre <https://alejandrogonzalezcarro1.github.io/gym/> **en Safari**
-   (tiene que ser Safari; desde Chrome no aparece la opción).
-   Toca `Compartir` → `Añadir a pantalla de inicio` → `Añadir`.
+3. **Instalarlas en el iPhone**
+   Abre la que toque **en Safari** (tiene que ser Safari; desde Chrome no aparece la opción)
+   y toca `Compartir` → `Añadir a pantalla de inicio` → `Añadir`.
+
+   - Principal: <https://alejandrogonzalezcarro1.github.io/gym/>
+   - Barbara: <https://alejandrogonzalezcarro1.github.io/gym/barbara/>
+
+   Cada una tiene su propio icono (el de Barbara va en violeta para no confundirlos) y su
+   propio nombre en la pantalla de inicio, así que pueden convivir en el mismo teléfono.
 
 Ya tienes el icono en la pantalla de inicio. Se abre a pantalla completa, sin barra de
 direcciones, y funciona aunque el gimnasio no tenga cobertura.
@@ -111,7 +131,8 @@ Tras tocar cualquier archivo hay que regenerar el service worker, que lleva la l
 recursos y una versión derivada del contenido:
 
 ```bash
-python3 scripts/gen-sw.py
+python3 scripts/gen-sw.py            # app principal
+python3 scripts/gen-sw.py barbara    # app de Barbara
 ```
 
 Si no lo haces, los navegadores que ya tengan la app instalada seguirán sirviendo la
@@ -129,7 +150,32 @@ img/                     50 fotogramas de demostración (free-exercise-db)
 icons/                   iconos de app y splash
 sw.js                    service worker — GENERADO, no editar a mano
 scripts/                 utilidades de construcción
+barbara/                 la segunda app, con la misma estructura y autocontenida
 ```
+
+`barbara/` no comparte archivos con la app principal: tiene su propia copia de las
+imágenes, los estilos y la lógica. Cuesta unos 400 KB de duplicación y obliga a aplicar
+dos veces los arreglos que valgan para ambas, a cambio de que sean de verdad
+independientes y de que sacarla a su propio repositorio sea mover una carpeta.
+
+### Qué cambia en la app de Barbara
+
+- **Estructura** Inferior / Superior en vez de Torso / Pierna, con los grupos cruzados a
+  propósito respecto a la otra: cuando uno hace torso, la otra hace pierna, así que nunca
+  compiten por la misma máquina.
+- **Nutrición en déficit**: −350 kcal con un suelo innegociable de 1.600, 3 comidas en vez
+  de 4 y el listón de proteína por comida en 40 g.
+- **Tobillo**: la rutina de tren inferior va en versión conservadora (máquinas, sentada o
+  tumbada, sin equilibrio a una pierna, sin impacto). Los ejercicios que rozan el tema
+  llevan etiqueta «Ojo al tobillo» y hay un aviso inicial que remite al fisio.
+- **Energía diaria 1-5 y día de ciclo**: es su métrica principal, así que la app la mide y
+  compara la media de las últimas 4 semanas con las 4 anteriores.
+- **Cardio**: registro de las 2 sesiones semanales sin impacto.
+- **Medidas**: cintura, cadera y muslo, no solo cintura.
+- **Árbol de decisión invertido**: aquí se baja de peso, no se sube. Y distingue el caso que
+  más se malinterpreta — báscula plana con la cintura bajando es **éxito**, no
+  estancamiento — cruzando peso y medidas.
+- **Hierro** entre los suplementos, con la advertencia de que no se toma sin análisis previo.
 
 ### Notas técnicas
 
