@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Rutina · Entreno y nutrición</title>
+<meta name="description" content="Rutina de 4 días, registro de series y planificador de nutrición. Funciona sin conexión.">
+
+<!-- PWA. Todas las rutas son relativas: el sitio vive en /gym/, no en la raíz del dominio. -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#101214">
+<meta name="color-scheme" content="dark">
+
+<!-- iOS: Safari ignora el manifest para el icono y usa estas etiquetas. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rutina">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-startup-image" href="./icons/splash.png">
+
+<style>
+:root{
+  --bg:#101214;
+  --card:#1A1D20;
+  --card2:#222629;
+  --card3:#2A2F33;
+  --text:#F2F3F1;
+  --mut:#9CA2A9;
+  --mut2:#6E757C;
+  --line:#2B3034;
+  --rojo:#E05243;
+  --azul:#4A79D2;
+  --amarillo:#DFA724;
+  --verde:#46A46C;
+  --ok:#46A46C;
+  --warn:#DFA724;
+  --bad:#E05243;
+  --acento:var(--rojo);
+  --sombra:0 10px 24px rgba(0,0,0,.35);
+  --r:14px;
+  --tabh:56px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.45;
+  overscroll-behavior-y:none;
+}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{background:none;border:none;cursor:pointer}
+a{color:var(--acento)}
+.wrap{max-width:680px;margin:0 auto;padding:0 14px}
+.oculto{display:none!important}
+
+/* ---------- barra superior ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  background:rgba(16,18,20,.96);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top);
+}
+.topbar .in{max-width:680px;margin:0 auto;padding:10px 14px 12px}
+.marca{display:flex;align-items:baseline;gap:8px;margin-bottom:10px}
+.marca h1{font-size:17px;font-weight:800;letter-spacing:-.02em}
+.marca span{font-size:12px;color:var(--mut);font-weight:500}
+
+/* discos de día */
+.plates{display:flex;gap:8px}
+.pwrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px}
+.plate{
+  --pc:#666;
+  width:52px;height:52px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%, var(--bg) 0 9px, var(--pc) 9.5px 100%);
+  position:relative;
+  box-shadow:inset 0 0 0 2.5px rgba(0,0,0,.3);
+  color:#fff;font-weight:800;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  opacity:.45;transition:opacity .18s, transform .18s;
+}
+.pwrap[data-dia="A"] .plate{--pc:var(--rojo)}
+.pwrap[data-dia="B"] .plate{--pc:var(--azul)}
+.pwrap[data-dia="C"] .plate{--pc:var(--amarillo)}
+.pwrap[data-dia="D"] .plate{--pc:var(--verde)}
+.plate.activo{opacity:1;transform:scale(1.06)}
+.pwrap small{font-size:10px;color:var(--mut2);font-weight:600;letter-spacing:.02em}
+.pwrap.activo small{color:var(--text)}
+.plate .punto{position:absolute;bottom:-1px;width:5px;height:5px;border-radius:50%;background:#fff}
+
+/* ---------- vistas ---------- */
+main{padding-bottom:calc(var(--tabh) + 26px + env(safe-area-inset-bottom))}
+.vista{display:none}
+.vista.activa{display:block}
+
+/* ---------- banda de resumen del día ---------- */
+.banda{margin:14px 0 10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.banda .fila{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.banda h2{font-size:15px;font-weight:700;letter-spacing:-.01em}
+.banda .sub{font-size:12px;color:var(--mut);margin-top:3px}
+.reset{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:5px 9px;white-space:nowrap}
+.reset:active{background:var(--card2)}
+.progreso{margin-top:12px}
+.progreso .txt{display:flex;justify-content:space-between;font-size:12px;color:var(--mut);margin-bottom:6px}
+.track{height:6px;background:var(--card3);border-radius:99px;overflow:hidden}
+.fill{height:100%;background:var(--acento);border-radius:99px;transition:width .3s ease}
+
+/* ---------- tarjeta de ejercicio ---------- */
+.ej{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;overflow:hidden;transition:border-color .2s}
+.ej.completo{border-color:color-mix(in srgb, var(--ok) 45%, var(--line))}
+.ej-top{display:flex;gap:12px;padding:12px}
+.demo{
+  width:92px;height:92px;flex:none;border-radius:10px;overflow:hidden;
+  background:var(--card2);position:relative
+}
+.demo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.demo .f1{opacity:0;transition:opacity .18s}
+.demo.anima .f0{opacity:0}
+.demo.anima .f1{opacity:1}
+.ej-info{flex:1;min-width:0}
+.ej-linea1{display:flex;align-items:center;gap:7px;margin-bottom:5px}
+.ej-num{
+  width:19px;height:19px;flex:none;border-radius:5px;background:var(--acento);
+  color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center
+}
+.ej-info h3{font-size:14.5px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.tag{font-size:10.5px;color:var(--mut);background:var(--card2);border-radius:5px;padding:2.5px 6px;font-weight:600}
+.tag.tipo{color:var(--acento);background:color-mix(in srgb, var(--acento) 16%, transparent)}
+.cue{font-size:12px;color:var(--mut);line-height:1.4}
+.cue a{white-space:nowrap;font-weight:600;text-decoration:none}
+
+/* zona de trabajo */
+.trabajo{border-top:1px solid var(--line);padding:12px;background:var(--card2)}
+.wfila{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wpeso{display:flex;align-items:center;gap:7px;flex:none}
+.wpeso label{font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.wpeso input{
+  width:70px;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+  padding:8px 9px;font-size:15px;font-weight:700;text-align:center
+}
+.wpeso input:focus{outline:none;border-color:var(--acento)}
+.wpeso .u{font-size:11px;color:var(--mut2);font-weight:600}
+.ultima{font-size:11px;color:var(--mut2);line-height:1.35;text-align:right;flex:1;min-width:0}
+.ultima b{color:var(--mut);font-weight:700}
+
+.series{display:flex;flex-direction:column;gap:7px}
+.serie{display:flex;align-items:center;gap:9px}
+.serie .nlabel{font-size:11px;color:var(--mut2);font-weight:700;width:52px;flex:none}
+.stepper{display:flex;align-items:center;gap:0;background:var(--bg);border:1px solid var(--line);border-radius:9px;overflow:hidden;flex:1}
+.stepper button{width:44px;height:40px;font-size:19px;font-weight:600;color:var(--mut);flex:none}
+.stepper button:active{background:var(--card3)}
+.stepper .val{flex:1;text-align:center;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.stepper .val small{font-size:10px;color:var(--mut2);font-weight:600;margin-left:2px}
+.hecho{
+  width:44px;height:40px;flex:none;border-radius:9px;border:1px solid var(--line);
+  background:var(--bg);color:var(--mut2);font-size:17px;
+  display:flex;align-items:center;justify-content:center;transition:.15s
+}
+.serie.ok .hecho{background:var(--ok);border-color:var(--ok);color:#fff}
+.serie.ok .stepper{opacity:.55}
+
+.hint{
+  margin-top:10px;font-size:12px;font-weight:600;border-radius:9px;padding:8px 10px;
+  background:color-mix(in srgb, var(--ok) 14%, transparent);
+  color:var(--ok);border:1px solid color-mix(in srgb, var(--ok) 30%, transparent)
+}
+.hint.baja{background:color-mix(in srgb, var(--warn) 14%, transparent);color:var(--warn);border-color:color-mix(in srgb, var(--warn) 30%, transparent)}
+
+/* ---------- nutrición ---------- */
+.anillos{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:14px 0 12px}
+.anillo{position:relative;width:96px;height:96px;flex:none}
+.anillo svg{transform:rotate(-90deg);display:block}
+.anillo .centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.anillo .big{font-size:20px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.anillo .lil{font-size:10px;color:var(--mut2);font-weight:600}
+.macros{flex:1;display:flex;flex-direction:column;gap:9px;min-width:0}
+.macro .mt{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:4px}
+.macro .mt b{font-weight:700}
+.macro .mt span{color:var(--mut);font-variant-numeric:tabular-nums}
+.mbar{height:5px;background:var(--card3);border-radius:99px;overflow:hidden}
+.mbar i{display:block;height:100%;border-radius:99px;transition:width .3s}
+
+.comida{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.comida .ch{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--line)}
+.comida .ch h3{font-size:14px;font-weight:700;flex:1}
+.comida .ch .kc{font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.comida .ch .pr{font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px;background:var(--card2);color:var(--mut)}
+.comida .ch .pr.ok{background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok)}
+.items{list-style:none}
+.items li{display:flex;align-items:center;gap:9px;padding:9px 13px;border-bottom:1px solid var(--line);font-size:13px}
+.items li:last-child{border-bottom:none}
+.items .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.items .gr{font-size:11px;color:var(--mut2);font-variant-numeric:tabular-nums;flex:none}
+.items .kc{font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums;flex:none;width:52px;text-align:right}
+.items .quitar{width:30px;height:30px;flex:none;color:var(--mut2);font-size:16px;display:flex;align-items:center;justify-content:center}
+.addbtn{width:100%;padding:11px;font-size:13px;font-weight:600;color:var(--acento);border-top:1px solid var(--line)}
+.addbtn:active{background:var(--card2)}
+.vacio{padding:13px;font-size:12px;color:var(--mut2);text-align:center}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:200;display:none}
+.modal.abierto{display:block}
+.modal .velo{position:absolute;inset:0;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.hoja{
+  position:absolute;left:0;right:0;bottom:0;max-height:88vh;
+  background:var(--card);border-radius:18px 18px 0 0;border-top:1px solid var(--line);
+  display:flex;flex-direction:column;
+  padding-bottom:env(safe-area-inset-bottom);
+  animation:subir .22s ease
+}
+@keyframes subir{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.hoja .hh{display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--line);flex:none}
+.hoja .hh h3{font-size:15px;font-weight:700;flex:1}
+.hoja .hh .cerrar{font-size:22px;color:var(--mut);width:32px;height:32px}
+.hoja .cuerpo{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 18px}
+.buscador{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;margin-bottom:10px}
+.buscador:focus{outline:none;border-color:var(--acento)}
+.catlabel{font-size:11px;color:var(--mut2);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px}
+.flista{list-style:none;display:flex;flex-direction:column;gap:6px}
+.flista li{display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:10px 12px}
+.flista .fn{flex:1;min-width:0}
+.flista .fn b{font-size:13.5px;font-weight:600;display:block}
+.flista .fn small{font-size:11px;color:var(--mut2)}
+.flista .fmac{font-size:11px;color:var(--mut);text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.gramos{display:flex;align-items:center;gap:10px;margin:14px 0}
+.gramos input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:17px;font-weight:700;text-align:center}
+.gramos input:focus{outline:none;border-color:var(--acento)}
+.btnp{width:100%;background:var(--acento);color:#fff;font-weight:700;font-size:15px;padding:13px;border-radius:11px}
+.btnp:active{filter:brightness(.9)}
+.btns{width:100%;background:var(--card2);color:var(--text);font-weight:600;font-size:14px;padding:12px;border-radius:11px;border:1px solid var(--line)}
+.previsual{background:var(--card2);border-radius:10px;padding:12px;font-size:12.5px;color:var(--mut);margin-bottom:14px;line-height:1.6}
+.previsual b{color:var(--text)}
+
+/* ---------- progreso ---------- */
+.bloque{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.bloque h3{font-size:14px;font-weight:700;margin-bottom:4px}
+.bloque .desc{font-size:12px;color:var(--mut);margin-bottom:12px}
+.kpis{display:flex;gap:10px;margin-bottom:12px}
+.kpi{flex:1;background:var(--card2);border-radius:11px;padding:11px;text-align:center}
+.kpi .v{font-size:19px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:10px;color:var(--mut2);font-weight:600;margin-top:2px;line-height:1.3}
+.entrada{display:flex;gap:8px}
+.entrada input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:15px;text-align:center;font-weight:600}
+.entrada input:focus{outline:none;border-color:var(--acento)}
+.entrada button{background:var(--acento);color:#fff;font-weight:700;padding:11px 18px;border-radius:10px;font-size:14px}
+.spark{width:100%;height:70px;display:block;margin:6px 0 10px}
+.hist{list-style:none;font-size:12.5px}
+.hist li{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);color:var(--mut)}
+.hist li:last-child{border-bottom:none}
+.hist b{color:var(--text);font-variant-numeric:tabular-nums}
+.esc{border-radius:11px;padding:12px;font-size:12.5px;line-height:1.55;border:1px solid var(--line);background:var(--card2)}
+.esc.activo{border-color:color-mix(in srgb, var(--warn) 40%, transparent);background:color-mix(in srgb, var(--warn) 10%, transparent)}
+.esc h4{font-size:13px;font-weight:700;margin-bottom:3px}
+.esc .cond{font-size:11px;color:var(--mut2);margin-bottom:6px}
+
+.supl{list-style:none}
+.supl li{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.supl li:last-child{border-bottom:none}
+.chk{width:26px;height:26px;flex:none;border-radius:8px;border:1.5px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:14px;color:transparent}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.supl .sn{flex:1;min-width:0}
+.supl .sn b{font-size:13.5px;font-weight:600;display:block}
+.supl .sn small{font-size:11px;color:var(--mut2);display:block;line-height:1.4}
+.supl .sd{font-size:12px;color:var(--mut);font-weight:700;flex:none}
+
+/* ---------- guía ---------- */
+.gsec{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.gsec>summary{padding:14px;font-size:14px;font-weight:700;cursor:pointer;list-style:none;display:flex;align-items:center;gap:9px}
+.gsec>summary::-webkit-details-marker{display:none}
+.gsec>summary::after{content:"›";margin-left:auto;color:var(--mut2);font-size:19px;transition:transform .2s}
+.gsec[open]>summary::after{transform:rotate(90deg)}
+.gcuerpo{padding:0 14px 14px;font-size:13px;color:var(--mut);line-height:1.6}
+.gcuerpo p{margin-bottom:9px}
+.gcuerpo b{color:var(--text)}
+.gcuerpo h4{color:var(--text);font-size:13px;margin:12px 0 6px}
+.gcuerpo ul,.gcuerpo ol{margin:0 0 9px 18px}
+.gcuerpo li{margin-bottom:5px}
+.gtabla{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:9px}
+.gtabla td,.gtabla th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.gtabla th{color:var(--text);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+.gtabla td:first-child{color:var(--text);font-weight:600;white-space:nowrap}
+.gpre{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:11px;font-size:11.5px;line-height:1.65;overflow-x:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mut);margin-bottom:9px}
+.gnota{font-size:12px;color:var(--mut2);font-style:italic}
+.gaviso{background:color-mix(in srgb, var(--warn) 12%, transparent);border-left:2px solid var(--warn);padding:9px 11px;border-radius:0 8px 8px 0;color:var(--text);font-size:12.5px}
+.gfuentes{font-size:12px}
+
+/* ---------- temporizador ---------- */
+.timerbar{
+  position:fixed;left:0;right:0;
+  bottom:calc(var(--tabh) + env(safe-area-inset-bottom));
+  z-index:90;padding:0 14px 10px;
+  transform:translateY(140%);transition:transform .28s cubic-bezier(.2,.8,.3,1);
+  pointer-events:none
+}
+.timerbar.visible{transform:translateY(0);pointer-events:auto}
+.timerbar .caja{
+  max-width:652px;margin:0 auto;background:var(--card2);
+  border:1px solid var(--line);border-radius:14px;box-shadow:var(--sombra);overflow:hidden
+}
+.timerbar .barra{height:3px;background:var(--card3)}
+.timerbar .barra i{display:block;height:100%;background:var(--acento);transition:width .95s linear}
+.timerbar .in{display:flex;align-items:center;gap:10px;padding:11px 13px}
+.timerbar .cuenta{font-size:24px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;min-width:66px}
+.timerbar .que{flex:1;font-size:11.5px;color:var(--mut);line-height:1.3;min-width:0}
+.timerbar button{font-size:12px;font-weight:700;color:var(--mut);border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--bg);white-space:nowrap}
+.timerbar.fin .cuenta{color:var(--ok)}
+
+/* ---------- barra de pestañas ---------- */
+.tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:100;
+  background:rgba(16,18,20,.97);
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+  display:flex
+}
+.tabbar button{
+  flex:1;height:var(--tabh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  color:var(--mut2);font-size:10px;font-weight:600;transition:color .15s
+}
+.tabbar button .ic{font-size:19px;line-height:1}
+.tabbar button.activo{color:var(--acento)}
+
+/* ---------- avisos ---------- */
+.instala{
+  display:flex;gap:10px;align-items:flex-start;
+  background:color-mix(in srgb, var(--azul) 14%, var(--card));
+  border:1px solid color-mix(in srgb, var(--azul) 35%, transparent);
+  border-radius:var(--r);padding:12px;margin:14px 0;font-size:12.5px;line-height:1.5
+}
+.instala b{font-weight:700}
+.instala button{color:var(--mut);font-size:18px;flex:none;width:24px}
+.toast{
+  position:fixed;left:14px;right:14px;bottom:calc(var(--tabh) + 20px + env(safe-area-inset-bottom));
+  z-index:150;background:var(--card3);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;font-size:13px;box-shadow:var(--sombra);
+  display:flex;align-items:center;gap:10px;
+  max-width:652px;margin:0 auto;
+  opacity:0;transform:translateY(12px);transition:.25s;pointer-events:none
+}
+.toast.visible{opacity:1;transform:translateY(0);pointer-events:auto}
+.toast button{font-weight:700;color:var(--acento);font-size:13px;white-space:nowrap}
+
+footer{font-size:11px;color:var(--mut2);text-align:center;padding:18px 4px 8px;line-height:1.6}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="in">
+    <div class="marca"><h1 id="ttitulo">Rutina 4 días</h1><span id="tsub">Torso · Pierna · ×2 por músculo</span></div>
+    <nav class="plates" id="plates" aria-label="Elegir día">
+      <div class="pwrap activo" data-dia="A"><button class="plate activo" data-dia="A" aria-label="Día A, torso: pecho y hombro"><span>A</span></button><small>Torso</small></div>
+      <div class="pwrap" data-dia="B"><button class="plate" data-dia="B" aria-label="Día B, pierna y core"><span>B</span></button><small>Pierna</small></div>
+      <div class="pwrap" data-dia="C"><button class="plate" data-dia="C" aria-label="Día C, torso: espalda y brazos"><span>C</span></button><small>Torso</small></div>
+      <div class="pwrap" data-dia="D"><button class="plate" data-dia="D" aria-label="Día D, pierna y hombro posterior"><span>D</span></button><small>Pierna</small></div>
+    </nav>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="instala oculto" id="instala">
+    <div>📲 <b>Añádela a tu pantalla de inicio:</b> en Safari toca Compartir → «Añadir a pantalla de inicio». Se abre como app, con icono propio y funciona sin conexión.</div>
+    <button id="cerrarinstala" aria-label="Cerrar aviso">×</button>
+  </div>
+
+  <section class="vista activa" id="v-entreno">
+    <div class="banda" id="banda"></div>
+    <div id="lista"></div>
+  </section>
+
+  <section class="vista" id="v-nutricion"></section>
+  <section class="vista" id="v-progreso"></section>
+  <section class="vista" id="v-guia"></section>
+
+  <footer>
+    Todo se guarda solo en este dispositivo. Haz una copia de seguridad de vez en cuando desde Progreso → Tus datos.<br>
+    Imágenes de demostración: free-exercise-db.
+  </footer>
+</main>
+
+<div class="timerbar" id="timerbar" role="status" aria-live="polite">
+  <div class="caja">
+    <div class="barra"><i id="tprog"></i></div>
+    <div class="in">
+      <div class="cuenta" id="tnum">0:00</div>
+      <div class="que" id="tque">Descanso</div>
+      <button id="tmas">+30 s</button>
+      <button id="tskip">Saltar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastmsg"></span><button id="toastbtn" class="oculto"></button></div>
+
+<div class="modal" id="modal">
+  <div class="velo" id="modalvelo"></div>
+  <div class="hoja">
+    <div class="hh"><h3 id="modaltitulo"></h3><button class="cerrar" id="modalcerrar" aria-label="Cerrar">×</button></div>
+    <div class="cuerpo" id="modalcuerpo"></div>
+  </div>
+</div>
+
+<nav class="tabbar" id="tabbar">
+  <button data-tab="entreno" class="activo"><span class="ic">🏋️</span>Entreno</button>
+  <button data-tab="nutricion"><span class="ic">🥗</span>Nutrición</button>
+  <button data-tab="progreso"><span class="ic">📈</span>Progreso</button>
+  <button data-tab="guia"><span class="ic">📖</span>Guía</button>
+</nav>
+
+<script src="./js/datos-ejercicios.js"></script>
+<script src="./js/datos-alimentos.js"></script>
+<script src="./js/datos-guia.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>
