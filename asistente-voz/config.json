@@ -1,0 +1,7 @@
+{
+  "atajo": "<ctrl>+<alt>+<space>",
+  "modelo": "gemini-3.8-flash",
+  "apps": {
+    "spotify": ["spotify"]
+  }
+}
